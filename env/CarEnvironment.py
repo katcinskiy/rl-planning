@@ -171,11 +171,13 @@ class PlayerCar:
         #         inputs = distances + velocity + road_vector
 
         inputs = distances
-        return inputs
+        return np.array(inputs)
 
 
 class car_environment(gymnasium.Env):
-    def __init__(self):
+    def __init__(self, display=False):
+
+        self.display = display
 
         self.GRASS = self.scale_image(pygame.image.load("imgs/grass.jpg"), 2.5)
 
@@ -201,14 +203,8 @@ class car_environment(gymnasium.Env):
 
         self.cluster_list = self.init_Clusters()
 
-        cluster_angle = self.checkCluster()
-
-        observation_shape = (1, )
-        self.observation_space = gymnasium.spaces.Box(low=np.zeros(observation_shape),
-                                            high=np.ones(observation_shape),
-                                            dtype=np.float16)
-        self.observation_space = len(self.player_car.Inputs(cluster_angle))
-        self.action_space = 5
+        self.observation_space = gymnasium.spaces.Box(-10, 10, shape=(7,), dtype=np.float64)
+        self.action_space = gymnasium.spaces.Discrete(5)
 
         self.reward2_power = 2
         self.reward2_coef = 1
@@ -341,16 +337,16 @@ class car_environment(gymnasium.Env):
         reward = abs(1 - (minimumDistance / roadRadius))
         return reward
 
-    def reset(self):
+    def reset(self, seed=None):
         self.player_car.reset()
         cluster_angle = self.checkCluster()
-        return self.player_car.Inputs(cluster_angle)
+        return self.player_car.Inputs(cluster_angle), {}
 
-    def step(self, action, human):
+    def step(self, action, human=False, return_img=False):
 
-        # self.clock.tick(self.FPS)
-
-        self.draw()
+        if self.display:
+            self.clock.tick(self.FPS)
+            self.draw()
 
         if human:
             self.move_player_human()
@@ -376,13 +372,17 @@ class car_environment(gymnasium.Env):
             reward1 = self.rewardSpeed()
             reward2 = self.rewardDistance()
             reward = reward1 - self.reward2_coef * (reward2 ** self.reward2_power)
-            # reward = reward1
+            reward = reward1
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.close()
 
-        return next_state, reward, done
+        return next_state, reward, done, False, {}
+
+    def render(self, mode='rgb_array'):
+        if mode == 'rgb_array':
+            return pygame.surfarray.array3d(self.WIN)
 
     def draw(self):  # (win, images, player_car):
 
